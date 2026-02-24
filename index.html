@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AuraRun</title>
-    
+    <link rel="icon" type="image/png" href="favicon.png">
     <!-- Importando Fonte do Google Fonts para garantir que fique igual no GitHub/Celular -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -643,11 +643,14 @@
             this.markedForDeletion = false;
             this.type = 'plat';
             this.isSteppedOn = false;
+            this.wasEverSteppedOn = false; // NOVO: Fica acesa para sempre após pisada
+            this.hasGivenMultiplier = false; // NOVO: Para somar combo só uma vez por plataform
+            this.passedDino = false; // NOVO: Verifica se o jogador deixou ela passar
         }
         update(speed) { this.x -= speed; if (this.x + this.width < 0) this.markedForDeletion = true; }
         draw(ctx) {
             ctx.save();
-            if (this.isSteppedOn) {
+            if (this.wasEverSteppedOn) {
                 ctx.fillStyle = '#ffff00';
                 ctx.shadowColor = '#ffff00';
                 ctx.shadowBlur = 15;
@@ -656,12 +659,12 @@
             }
             ctx.fillRect(this.x, this.y, this.width, this.height);
             ctx.shadowBlur = 0; 
-            if (!this.isSteppedOn) {
+            if (!this.wasEverSteppedOn) {
                 ctx.fillStyle = '#ffff00';
                 ctx.fillRect(this.x, this.y, 15, this.height); 
                 ctx.fillRect(this.x + this.width - 15, this.y, 15, this.height); 
             }
-            ctx.strokeStyle = this.isSteppedOn ? '#ffff00' : COLORS.bg;
+            ctx.strokeStyle = this.wasEverSteppedOn ? '#ffff00' : COLORS.bg;
             ctx.lineWidth = 2;
             ctx.beginPath();
             for(let i=0; i<this.width-10; i+=20) {
@@ -772,11 +775,23 @@
                     if (this.y <= p.y + 15 && this.y + this.vy >= p.y) {
                         targetFloor = p.y;
                         p.isSteppedOn = true;
+                        p.wasEverSteppedOn = true;
+                        if (!p.hasGivenMultiplier) {
+                            p.hasGivenMultiplier = true;
+                            inst.multiplier++;
+                            inst.updateScoreDisplay(); // Atualiza painel ao subir
+                        }
                         break;
                     }
                     if (this.yFloor === p.y && this.y === p.y) {
                         targetFloor = p.y;
                         p.isSteppedOn = true;
+                        p.wasEverSteppedOn = true;
+                        if (!p.hasGivenMultiplier) {
+                            p.hasGivenMultiplier = true;
+                            inst.multiplier++;
+                            inst.updateScoreDisplay(); // Atualiza painel ao correr em cima
+                        }
                         break;
                     }
                 }
@@ -1001,6 +1016,7 @@
             this.flyingHats = [];
             
             this.score = 0; this.gameSpeed = INITIAL_SPEED; 
+            this.multiplier = 1; // NOVO: Controle de Multiplicador de Score
             this.obstacleTimer = 0; this.platformTimer = 0;
             this.shakeIntensity = 0; this.shakeFrames = 0;
 
@@ -1027,6 +1043,7 @@
         reset() {
             this.obstacles = []; this.particles = []; this.flyingHats = []; this.platforms = [];
             this.score = 0; this.gameSpeed = INITIAL_SPEED; this.obstacleTimer = 0; this.platformTimer = 0;
+            this.multiplier = 1; // Reseta Combo na nova partida
             this.dino.isDead = false; this.dino.isSliding = false; this.dino.slideTimer = 0;
             this.dino.y = this.dino.baseFloor; this.dino.yFloor = this.dino.baseFloor; this.dino.vy = 0;
             this.dino.scaleX = 1; this.dino.scaleY = 1; this.dino.currentRot = 0; this.dino.jumps = 0;
@@ -1051,11 +1068,13 @@
         }
 
         updateScoreDisplay() { 
-            this.scoreEl.innerText = Math.floor(this.score).toString().padStart(5, '0'); 
-            if (this.dino.yFloor < this.dino.baseFloor) {
+            let scoreStr = Math.floor(this.score).toString().padStart(5, '0'); 
+            if (this.multiplier > 1) {
+                this.scoreEl.innerText = `${scoreStr} x${this.multiplier}`; 
                 this.scoreEl.style.color = '#ffff00'; 
                 this.scoreEl.style.textShadow = '0px 0px 10px rgba(255, 255, 0, 0.8)';
             } else {
+                this.scoreEl.innerText = scoreStr;
                 this.scoreEl.style.color = 'var(--fg-color)';
                 this.scoreEl.style.textShadow = '2px 2px 0px rgba(255,255,255,0.3)';
             }
@@ -1097,8 +1116,7 @@
             
             if (!this.dino.isDead) {
                 let oldScore = Math.floor(this.score);
-                let multiplier = (this.dino.yFloor < this.dino.baseFloor) ? 2 : 1;
-                this.score += 0.05 * this.gameSpeed * multiplier;
+                this.score += 0.05 * this.gameSpeed * this.multiplier;
                 if (Math.floor(this.score) > oldScore) this.updateScoreDisplay();
             }
 
@@ -1115,7 +1133,17 @@
                 }
                 this.platformTimer = 0;
             }
-            this.platforms.forEach(p => p.update(this.gameSpeed));
+            this.platforms.forEach(p => {
+                p.update(this.gameSpeed);
+                // Verifica se o jogador deixou a plataforma passar direto sem pisar
+                if (!p.passedDino && (p.x + p.width < this.dino.x)) {
+                    p.passedDino = true;
+                    if (!p.wasEverSteppedOn && this.multiplier > 1) {
+                        this.multiplier = 1; // Quebra o combo
+                        this.updateScoreDisplay(); // Mostra visualmente a perda do combo
+                    }
+                }
+            });
             this.platforms = this.platforms.filter(p => !p.markedForDeletion);
 
             this.obstacleTimer++;
@@ -1202,13 +1230,13 @@
         return {
             dyOffset: localGame.dino.baseFloor - localGame.dino.y, 
             dd: localGame.dino.isDead, dj: localGame.dino.isJumping, sl: localGame.dino.isSliding,
-            sc: localGame.score, sx: localGame.dino.scaleX, sy: localGame.dino.scaleY,
+            sc: localGame.score, ml: localGame.multiplier, sx: localGame.dino.scaleX, sy: localGame.dino.scaleY,
             obs: localGame.obstacles.map(o => ({ 
                 x: Math.round(o.x), w: Math.round(o.width), h: Math.round(o.height), 
                 p: o.pattern, t: o.type, ho: o.hoverOffset, alt: o.altitude, do: o.dropOffset
             })),
             plats: localGame.platforms.map(p => ({
-                x: Math.round(p.x), yOff: Math.round(localGame.dino.baseFloor - p.y), w: Math.round(p.width), act: p.isSteppedOn
+                x: Math.round(p.x), yOff: Math.round(localGame.dino.baseFloor - p.y), w: Math.round(p.width), act: p.wasEverSteppedOn
             }))
         };
     }
@@ -1241,6 +1269,7 @@
         }
 
         remoteGame.score = data.sc;
+        remoteGame.multiplier = data.ml || 1;
         
         remoteGame.obstacles = data.obs.map(o => {
             if (o.t === 'drone') {
@@ -1265,7 +1294,7 @@
         remoteGame.platforms = data.plats ? data.plats.map(p => {
             let plat = new Platform(0, remoteGame.dino.baseFloor);
             plat.x = p.x; plat.y = remoteGame.dino.baseFloor - p.yOff; plat.width = p.w; 
-            plat.isSteppedOn = p.act; 
+            plat.wasEverSteppedOn = p.act; 
             return plat;
         }) : [];
 
