@@ -1004,16 +1004,18 @@
         resize() {
             const parent = this.canvas.parentElement;
             
-            // Lógica de Zoom Out no Mobile: 
-            // Aumentamos a resolução lógica do canvas para a tela do jogo aparecer mais afastada
+            // Lógica de Zoom Out no Mobile
             const isMobile = window.innerWidth <= 768;
-            const zoomOutFactor = isMobile ? 1.4 : 1; // 40% de zoom out em telas pequenas
+            const zoomOutFactor = isMobile ? 1.4 : 1; 
             
             this.canvas.width = parent.clientWidth * zoomOutFactor;
             this.canvas.height = parent.clientHeight * zoomOutFactor;
             
-            // Aumentando o tamanho do chão em 30% em relação ao original (0.15 para 0.20)
-            this.dino.setBaseFloor(this.canvas.height - (this.canvas.height * 0.20));
+            // Ajuste Inteligente do Chão baseado no Modo de Jogo:
+            // Modo Solo: O chão ocupa cerca de 38% da tela (como na Imagem 2).
+            // Modo Multiplayer (divisão de tela): O chão ocupa 26% para sobrar espaço em cima.
+            const floorPercentage = isSolo ? 0.38 : 0.26;
+            this.dino.setBaseFloor(this.canvas.height - (this.canvas.height * floorPercentage));
         }
 
         reset() {
@@ -1447,6 +1449,9 @@
             document.getElementById('p1-label').innerHTML = "VOCÊ"; document.getElementById('p2-label').innerHTML = "INIMIGO";
             document.getElementById('my-peer-id').innerText = id;
             document.getElementById('host-id-container').style.display = 'block';
+            
+            setTimeout(() => { gameP1.resize(); gameP2.resize(); }, 50);
+
             switchMenu('menu-lobby'); updateCustomization();
         });
 
@@ -1478,6 +1483,8 @@
             
             conn = peer.connect(targetId, { reliable: true });
             conn.on('open', () => {
+                setTimeout(() => { gameP1.resize(); gameP2.resize(); }, 50);
+
                 setupPeerConnection(); switchMenu('menu-lobby');
                 document.getElementById('remote-status').innerText = "ESPERANDO";
                 document.getElementById('remote-status').className = 'status-badge';
