@@ -1269,40 +1269,54 @@
         remoteGame.updateScoreDisplay();
     }
 
-    // --- Loop Principal ---
-    function gameLoop() {
-        if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
-            if(localGame) {
-                localGame.updateLocal();
-                
-                if (gameState === 'PLAYING' && localGame.dino.yFloor < localGame.dino.baseFloor && !localGame.dino.isDead) {
-                    startPlatformSFX();
-                } else {
-                    stopPlatformSFX();
-                }
-            }
+    // --- Loop Principal e Controle de FPS ---
+    let lastFrameTime = 0;
+    const targetFPS = 60;
+    const frameDelay = 1000 / targetFPS;
 
-            if (gameState === 'PLAYING' && !isSolo && conn && conn.open && localGame) {
-                conn.send({ type: 'STATE', state: getLocalGameState() });
-            }
-
-            if (!isSolo && remoteGame) {
-                remoteGame.updateVisuals();
-            }
-
-            if (gameState === 'PLAYING') {
-                if (isSolo) {
-                    if (gameP1.dino.isDead) { gameState = 'GAMEOVER'; handleGameOver(); }
-                } else {
-                    if (gameP1.dino.isDead && gameP2.dino.isDead) { gameState = 'GAMEOVER'; handleGameOver(); }
-                }
-            }
-        }
-
-        gameP1.draw();
-        if(!isSolo) gameP2.draw();
-
+    function gameLoop(timestamp) {
         animationFrameId = requestAnimationFrame(gameLoop);
+
+        // Trava para evitar o bug de aumento de velocidade em telas de 120Hz/toque
+        if (!timestamp) return;
+        if (!lastFrameTime) lastFrameTime = timestamp;
+        const elapsed = timestamp - lastFrameTime;
+
+        if (elapsed > frameDelay) {
+            // Ajusta o tempo da última renderização
+            lastFrameTime = timestamp - (elapsed % frameDelay);
+
+            if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+                if(localGame) {
+                    localGame.updateLocal();
+                    
+                    if (gameState === 'PLAYING' && localGame.dino.yFloor < localGame.dino.baseFloor && !localGame.dino.isDead) {
+                        startPlatformSFX();
+                    } else {
+                        stopPlatformSFX();
+                    }
+                }
+
+                if (gameState === 'PLAYING' && !isSolo && conn && conn.open && localGame) {
+                    conn.send({ type: 'STATE', state: getLocalGameState() });
+                }
+
+                if (!isSolo && remoteGame) {
+                    remoteGame.updateVisuals();
+                }
+
+                if (gameState === 'PLAYING') {
+                    if (isSolo) {
+                        if (gameP1.dino.isDead) { gameState = 'GAMEOVER'; handleGameOver(); }
+                    } else {
+                        if (gameP1.dino.isDead && gameP2.dino.isDead) { gameState = 'GAMEOVER'; handleGameOver(); }
+                    }
+                }
+            }
+
+            gameP1.draw();
+            if(!isSolo) gameP2.draw();
+        }
     }
 
     function switchMenu(menuId) {
@@ -1710,7 +1724,10 @@
         if (gameState !== 'PLAYING' && gameState !== 'COUNTDOWN') { gameP1.draw(); gameP2.draw(); }
     });
 
-    gameP1.reset(); gameP2.reset(); gameLoop();
+    gameP1.reset(); gameP2.reset(); 
+    
+    // Inicia o loop usando o requestAnimationFrame para ter acesso ao timestamp
+    requestAnimationFrame(gameLoop);
 
 </script>
 </body>
