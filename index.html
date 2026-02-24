@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AuraRun</title>
-    <link rel="icon" type="image/png" href="favicon.png">
     <!-- Biblioteca PeerJS para o Multiplayer P2P -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <!-- Biblioteca Supabase -->
@@ -210,7 +209,14 @@
         #game-container.solo-mode #p1-screen { border-bottom: none; }
 
         /* HIGHSCORES */
-        .score-list { text-align: left; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 180px; overflow-y: auto;}
+        .score-list { text-align: left; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 220px; overflow-y: auto;}
+        
+        /* ESTILO DA BARRA DE ROLAGEM DOS RECORDES */
+        .score-list::-webkit-scrollbar { width: 12px; }
+        .score-list::-webkit-scrollbar-track { background: var(--bg-color); border: 2px solid var(--fg-color); border-radius: 4px; }
+        .score-list::-webkit-scrollbar-thumb { background: var(--fg-color); border: 2px solid var(--accent); border-radius: 4px; }
+        .score-list::-webkit-scrollbar-thumb:hover { background: #222; }
+
         .score-item { display: flex; justify-content: space-between; font-size: 18px; border-bottom: 2px solid #444; padding: 8px 0;}
         .score-item:last-child { border-bottom: none; }
         .score-name { color: var(--accent); }
@@ -303,7 +309,7 @@
 
     <!-- Menu Highscores -->
     <div id="menu-highscores" class="menu-box">
-        <h2>RECORDES</h2>
+        <h2>AuraRun</h2>
         <h3 style="margin-bottom: 5px;">MODO SOLO</h3>
         <div id="list-scores-solo" class="score-list"></div>
         <h3 style="margin-bottom: 5px;">MULTIPLAYER</h3>
@@ -365,7 +371,6 @@
     // SFX em Loop da Plataforma
     let platformSfxInterval = null;
     let platStep = 0;
-    // Notas agudas que harmonizam com a melodia principal (Lá Menor Pentatônica)
     const platNotes = [880, 1046, 1318, 1568];
 
     function initAudio() {
@@ -471,7 +476,7 @@
             osc.type = 'sine';
             osc.frequency.setValueAtTime(platNotes[platStep % platNotes.length], audioCtx.currentTime);
             platStep++;
-            gain.gain.setValueAtTime(0.03, audioCtx.currentTime); // Som subtil
+            gain.gain.setValueAtTime(0.03, audioCtx.currentTime); 
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
             osc.connect(gain); gain.connect(audioCtx.destination);
             osc.start(); osc.stop(audioCtx.currentTime + 0.1);
@@ -625,39 +630,31 @@
 
     class Platform {
         constructor(canvasWidth, floorY) {
-            this.width = 400 + Math.random() * 300; // Mais longa
+            this.width = 400 + Math.random() * 300;
             this.height = 15;
             this.x = canvasWidth;
-            // Muito mais alta, exige um pulo duplo (no limite do ápice)
             this.y = floorY - 185 - Math.random() * 20; 
             this.markedForDeletion = false;
             this.type = 'plat';
-            this.isSteppedOn = false; // Novo estado para saber se o dino está nela
+            this.isSteppedOn = false;
         }
         update(speed) { this.x -= speed; if (this.x + this.width < 0) this.markedForDeletion = true; }
         draw(ctx) {
-            ctx.save(); // Guarda o contexto para os efeitos de brilho não passarem para os outros desenhos
-            
+            ctx.save();
             if (this.isSteppedOn) {
-                ctx.fillStyle = '#ffff00'; // Fica totalmente amarela
+                ctx.fillStyle = '#ffff00';
                 ctx.shadowColor = '#ffff00';
-                ctx.shadowBlur = 15; // Brilho neon
+                ctx.shadowBlur = 15;
             } else {
-                ctx.fillStyle = COLORS.fg; // Cor normal preta
+                ctx.fillStyle = COLORS.fg;
             }
-            
             ctx.fillRect(this.x, this.y, this.width, this.height);
-            
-            ctx.shadowBlur = 0; // Remove o brilho para desenhar a estrutura
-
-            // Ponto Amarelo Vivo no início e no fim (apenas se a plataforma não estiver toda amarela)
+            ctx.shadowBlur = 0; 
             if (!this.isSteppedOn) {
                 ctx.fillStyle = '#ffff00';
                 ctx.fillRect(this.x, this.y, 15, this.height); 
                 ctx.fillRect(this.x + this.width - 15, this.y, 15, this.height); 
             }
-
-            // Estética estrutural abaixo da plataforma
             ctx.strokeStyle = this.isSteppedOn ? '#ffff00' : COLORS.bg;
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -668,21 +665,20 @@
                 ctx.lineTo(this.x + i + 10, this.y + this.height);
             }
             ctx.stroke();
-            
-            ctx.restore(); // Restaura o contexto
+            ctx.restore();
         }
     }
 
     class Dino {
         constructor() {
             this.width = 40; this.height = 46;
-            this.x = 25; // Movido mais pra frente para melhor visão de obstáculos
+            this.x = 120;
             this.y = 0; 
             this.baseFloor = 0; this.yFloor = 0;
             this.vy = 0; 
             this.isJumping = false; this.isDead = false; 
             this.isSliding = false; this.slideTimer = 0;
-            this.jumps = 0; // Para contar o Pulo Duplo
+            this.jumps = 0;
             this.scaleX = 1; this.scaleY = 1;
             this.color = '#000000'; this.hat = 'none';
             this.currentRot = 0; this.deadRot = 0;
@@ -706,7 +702,7 @@
                 if (this.jumps < 2) {
                     this.vy = JUMP_POWER; 
                     this.isJumping = true;
-                    this.isSliding = false; // Cancela o slide se pular
+                    this.isSliding = false; 
                     this.slideTimer = 0;
                     this.jumps++;
                     this.scaleX = 0.6; this.scaleY = 1.4;
@@ -718,27 +714,24 @@
 
         slide(inst) {
             if (!this.isDead && gameState === 'PLAYING') {
-                if (this.slideTimer === 0) { // Só ativa se não estiver deslizando
-                    this.slideTimer = 25; // Slide mais curto e ágil (20 frames)
+                if (this.slideTimer === 0) { 
+                    this.slideTimer = 25; 
                     
-                    // Efeito Juicy Visual na entrada do slide
                     this.scaleX = 1.5; 
                     this.scaleY = 0.5;
-                    // Impulso de fumaça atrás
                     inst.addParticles(this.x + this.width, this.y - 10, 8, 'rgba(255, 255, 255, 0.8)');
                     
                     if (this.y < this.yFloor) {
-                        this.vy = 18; // Impulso brusco e forte para baixo (Fast Fall)
+                        this.vy = 18; 
                         playFastFall();
                     } else if (this.yFloor < this.baseFloor) {
-                        // Atravessa a plataforma se estiver em cima dela
                         this.yFloor = this.baseFloor;
-                        this.y += 5; // Descola da plataforma para não haver engate imediato
-                        this.vy = 12; // Drop rápido
+                        this.y += 5; 
+                        this.vy = 12; 
                         this.isJumping = true;
                         playFastFall();
                     } else {
-                        playSlide(); // Som de derrapagem no chão
+                        playSlide();
                     }
                 }
             }
@@ -747,12 +740,10 @@
         update(inst) {
             if (this.isDead) return;
 
-            // Timer do Slide fixo
             if (this.slideTimer > 0) {
                 this.slideTimer--;
                 this.isSliding = true;
                 
-                // Faíscas contínuas se estiver no chão deslizando
                 if (this.y >= this.yFloor && Math.random() > 0.2) {
                     inst.addParticles(this.x + this.width/2 + 10, this.y, 1, '#ffff00');
                     inst.addParticles(this.x - 5, this.y, 1, '#ffaa00');
@@ -761,26 +752,25 @@
                 this.isSliding = false;
             }
 
-            // Lógica de colisão com Plataformas
             let targetFloor = this.baseFloor;
             for (let p of inst.platforms) {
-                p.isSteppedOn = false; // Reseta o estado da plataforma
+                p.isSteppedOn = false;
                 let dinoLeft = this.x;
                 let dinoRight = this.x + this.width;
                 let platLeft = p.x;
                 let platRight = p.x + p.width;
 
                 if (dinoRight > platLeft && dinoLeft < platRight) {
-                    if (this.isSliding) continue; // Ignora a plataforma se estiver deslizando/caindo rápido para a atravessar
+                    if (this.isSliding) continue;
 
                     if (this.y <= p.y + 15 && this.y + this.vy >= p.y) {
                         targetFloor = p.y;
-                        p.isSteppedOn = true; // Activa a cor amarela
+                        p.isSteppedOn = true;
                         break;
                     }
                     if (this.yFloor === p.y && this.y === p.y) {
                         targetFloor = p.y;
-                        p.isSteppedOn = true; // Mantém a cor amarela enquanto corre em cima
+                        p.isSteppedOn = true;
                         break;
                     }
                 }
@@ -790,23 +780,20 @@
             this.y += this.vy;
             this.vy += GRAVITY;
 
-            // Cai um pouco mais rápido enquanto escorrega e adiciona rastro
             if (this.isSliding && this.y < this.yFloor) {
                 this.vy += 1.5;
-                // Efeito de rastro (vento) caindo rápido
                 inst.addParticles(this.x + this.width/2 + (Math.random()-0.5)*20, this.y - this.height/2, 2, 'rgba(255, 255, 255, 0.7)');
             }
 
             this.scaleX += (1 - this.scaleX) * 0.15;
             this.scaleY += (1 - this.scaleY) * 0.15;
 
-            // Aterrissagem
             if (this.y >= this.yFloor) {
                 let justLanded = (this.isJumping || this.vy > 10);
                 if(justLanded) {
                     if (this.isSliding) {
-                        this.scaleX = 1.6; this.scaleY = 0.4; // Squash violento
-                        inst.addParticles(this.x + this.width/2, this.y, 15, '#ffeb3b'); // Explosão de faíscas ao bater no chão
+                        this.scaleX = 1.6; this.scaleY = 0.4; 
+                        inst.addParticles(this.x + this.width/2, this.y, 15, '#ffeb3b'); 
                         inst.shake(8, 12);
                     } else if (this.isJumping) {
                         this.scaleX = 1.4; this.scaleY = 0.6;
@@ -814,13 +801,12 @@
                         inst.shake(3, 8);
                     }
                     
-                    // SFX de plataforma (impacto inicial) se o chão atual for mais alto que o chão base
                     if (this.yFloor < this.baseFloor) {
                         playPlatformLand();
                     }
 
                     this.isJumping = false;
-                    this.jumps = 0; // Reseta pulos
+                    this.jumps = 0; 
                 }
                 this.y = this.yFloor; 
                 this.vy = 0; 
@@ -847,13 +833,11 @@
             let drawW = this.width; let drawH = this.height;
 
             if (this.isSliding && !this.isDead && !this.isJumping) {
-                // Corpo escorregando
                 ctx.fillRect(-drawW/2 - 10, -20, drawW + 16, 16); 
                 ctx.fillRect(drawW/2 + 2, -16, 16, 12); 
                 ctx.fillStyle = COLORS.bg;
                 ctx.fillRect(drawW/2 + 10, -14, 4, 4); 
             } else {
-                // Corpo Normal
                 ctx.fillRect(-drawW/2 + 6, -drawH, drawW - 12, drawH);
                 ctx.fillRect(-drawW/2, -drawH + 10, 8, 14);
                 ctx.fillRect(drawW/2 - 16, -drawH - 4, 22, 18);
@@ -907,23 +891,20 @@
             this.x -= speed; 
             if (this.x + this.width < 0) this.markedForDeletion = true; 
             
-            // Animação brutal de queda
             if (this.isDropping) {
                 this.dropOffset += 15; 
                 if (this.dropOffset >= 35) {
-                    this.dropOffset = 35; // Limita no chão
+                    this.dropOffset = 35;
                 }
             }
         }
         getHitbox() { 
-            // O Esmagador para a 35px do chão. O Slide (20px alt) passa tranquilo.
             return { x: this.x + 5, y: -1000, w: this.width - 10, h: 1000 + this.yBase - 35 + this.dropOffset }; 
         }
         draw(ctx) {
             let actualY = this.yBase - 35 + this.dropOffset;
 
             ctx.fillStyle = COLORS.fg;
-            // Parede gigante caindo do teto
             ctx.fillRect(this.x, actualY - 800, this.width, 800);
             
             ctx.strokeStyle = COLORS.bg; ctx.lineWidth = 2;
@@ -1022,9 +1003,17 @@
 
         resize() {
             const parent = this.canvas.parentElement;
-            this.canvas.width = parent.clientWidth;
-            this.canvas.height = parent.clientHeight;
-            this.dino.setBaseFloor(this.canvas.height - (this.canvas.height * 0.15));
+            
+            // Lógica de Zoom Out no Mobile: 
+            // Aumentamos a resolução lógica do canvas para a tela do jogo aparecer mais afastada
+            const isMobile = window.innerWidth <= 768;
+            const zoomOutFactor = isMobile ? 1.4 : 1; // 40% de zoom out em telas pequenas
+            
+            this.canvas.width = parent.clientWidth * zoomOutFactor;
+            this.canvas.height = parent.clientHeight * zoomOutFactor;
+            
+            // Aumentando o tamanho do chão em 30% em relação ao original (0.15 para 0.20)
+            this.dino.setBaseFloor(this.canvas.height - (this.canvas.height * 0.20));
         }
 
         reset() {
@@ -1056,7 +1045,7 @@
         updateScoreDisplay() { 
             this.scoreEl.innerText = Math.floor(this.score).toString().padStart(5, '0'); 
             if (this.dino.yFloor < this.dino.baseFloor) {
-                this.scoreEl.style.color = '#ffff00'; // Amarelo Vivo Brilhante
+                this.scoreEl.style.color = '#ffff00'; 
                 this.scoreEl.style.textShadow = '0px 0px 10px rgba(255, 255, 0, 0.8)';
             } else {
                 this.scoreEl.style.color = 'var(--fg-color)';
@@ -1100,7 +1089,6 @@
             
             if (!this.dino.isDead) {
                 let oldScore = Math.floor(this.score);
-                // Pontos x2 em Plataformas
                 let multiplier = (this.dino.yFloor < this.dino.baseFloor) ? 2 : 1;
                 this.score += 0.05 * this.gameSpeed * multiplier;
                 if (Math.floor(this.score) > oldScore) this.updateScoreDisplay();
@@ -1111,7 +1099,6 @@
 
             if (this.dino.isDead) return;
 
-            // Spawn Plataformas
             this.platformTimer++;
             const platSpawnRate = 60 + (Math.random() * 100) * (INITIAL_SPEED / this.gameSpeed); 
             if (this.platformTimer > platSpawnRate * 3) {
@@ -1123,14 +1110,13 @@
             this.platforms.forEach(p => p.update(this.gameSpeed));
             this.platforms = this.platforms.filter(p => !p.markedForDeletion);
 
-            // Spawn Inimigos Mortais
             this.obstacleTimer++;
             const spawnRate = 70 + (Math.random() * 150) * (INITIAL_SPEED / this.gameSpeed); 
             if (this.obstacleTimer > spawnRate) {
                 let rand = Math.random();
                 if (this.score > 1000 && rand < 0.25) {
                     this.obstacles.push(new Drone(this.canvas.width, this.dino.baseFloor));
-                } else if (this.score > 500 && rand < 0.45) { // Aparece a partir de 500pts
+                } else if (this.score > 500 && rand < 0.45) { 
                     this.obstacles.push(new Crusher(this.canvas.width, this.dino.baseFloor));
                 } else {
                     this.obstacles.push(new Obstacle(this.canvas.width, this.dino.baseFloor));
@@ -1141,10 +1127,8 @@
             this.obstacles.forEach(obs => {
                 obs.update(this.gameSpeed);
                 
-                // --- Lógica Especial para o Crusher Cair ---
                 if (obs.type === 'crusher') {
                     if (!obs.hasDropped && !obs.isDropping) {
-                        // Se o dino passar do meio do crusher, ele desaba
                         if (this.dino.x > obs.x + obs.width - 20) { 
                             obs.isDropping = true;
                         }
@@ -1152,8 +1136,8 @@
                     if (obs.isDropping && obs.dropOffset >= 35) {
                         obs.isDropping = false;
                         obs.hasDropped = true;
-                        this.shake(12, 8); // Camerashake violento da pancada
-                        this.addParticles(obs.x + obs.width/2, this.dino.baseFloor, 20, '#ffff00'); // Faiscas do esmagador no chao
+                        this.shake(12, 8); 
+                        this.addParticles(obs.x + obs.width/2, this.dino.baseFloor, 20, '#ffff00'); 
                         playCrushDrop();
                     }
                 }
@@ -1187,11 +1171,10 @@
 
             this.bgElements.forEach(bg => bg.draw(this.ctx));
 
-            this.ctx.fillStyle = COLORS.fg;
-            this.ctx.fillRect(0, this.dino.baseFloor, this.canvas.width, this.canvas.height - this.dino.baseFloor);
-            
-            let floorOffset = - (this.score * 5 % 40);
-            for(let i=0; i<this.canvas.width/40 + 1; i++) this.ctx.fillRect(floorOffset + i*40, this.dino.baseFloor, 20, 10);
+            // Novo Design do Chão: Completamente preto
+            this.ctx.fillStyle = '#000000';
+            const floorHeight = this.canvas.height - this.dino.baseFloor;
+            this.ctx.fillRect(0, this.dino.baseFloor, this.canvas.width, floorHeight);
 
             this.platforms.forEach(p => p.draw(this.ctx));
             this.obstacles.forEach(obs => obs.draw(this.ctx));
@@ -1274,7 +1257,7 @@
         remoteGame.platforms = data.plats ? data.plats.map(p => {
             let plat = new Platform(0, remoteGame.dino.baseFloor);
             plat.x = p.x; plat.y = remoteGame.dino.baseFloor - p.yOff; plat.width = p.w; 
-            plat.isSteppedOn = p.act; // Sincroniza a cor da plataforma remotamente
+            plat.isSteppedOn = p.act; 
             return plat;
         }) : [];
 
@@ -1290,7 +1273,6 @@
             if(localGame) {
                 localGame.updateLocal();
                 
-                // Lógica do SFX Contínuo da Plataforma
                 if (gameState === 'PLAYING' && localGame.dino.yFloor < localGame.dino.baseFloor && !localGame.dino.isDead) {
                     startPlatformSFX();
                 } else {
@@ -1346,7 +1328,7 @@
                 .select('*')
                 .eq('mode', mode)
                 .order('score', { ascending: false })
-                .limit(5);
+                .limit(10);
 
             if (error) {
                 console.error('Erro ao buscar recordes:', error);
@@ -1580,7 +1562,7 @@
             } else {
                 clearInterval(tick); c1.style.display = 'none'; c2.style.display = 'none';
                 gameState = 'PLAYING';
-                playBGM(); // Inicia música!
+                playBGM(); 
             }
         }, 800);
     }
@@ -1627,7 +1609,7 @@
                 document.getElementById('btn-restart').style.display = 'none';
                 document.getElementById('wait-host-msg').style.display = 'block';
             }
-        }, 2000); // 2 segundos de espera para ver as animações de morte
+        }, 2000); 
     }
 
     function returnToLobby() {
@@ -1696,7 +1678,6 @@
         if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
             e.preventDefault();
             let touchEndY = e.touches[0].clientY;
-            // Deslizar para baixo ativa o slide apenas uma vez por swipe
             if (!isSwiping && touchEndY - touchStartY > 40) {
                 isSwiping = true;
                 handleSlide();
